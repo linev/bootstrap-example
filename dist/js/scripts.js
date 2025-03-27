@@ -1,7 +1,7 @@
 /*!
-* Start Bootstrap - Freelancer v7.0.7 (https://startbootstrap.com/theme/freelancer)
-* Copyright 2013-2025 Start Bootstrap
-* Licensed under MIT (https://github.com/StartBootstrap/startbootstrap-freelancer/blob/master/LICENSE)
+* Start Bootstrap - Bootstrap with ROOT v1.0.0 (https://startbootstrap.com/theme/freelancer)
+* Copyright 2013-2025 Sergey Linev
+* Licensed under MIT (https://github.com/StartBootstrap/tbootstrap-example/blob/master/LICENSE)
 */
 //
 // Scripts

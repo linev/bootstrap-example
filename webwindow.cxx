@@ -1,11 +1,10 @@
 /// \file
 /// \ingroup tutorial_webgui
 /// \ingroup webwidgets
-/// Use of `bootstrap` framework together with RWebWindow class.
+/// Minimal server/client code for working with RWebWindow class.
 ///
-/// In webwindow.cxx RWebWindow created
-/// In `dist` directory HTML files generated with bootstrap are placed
-/// One also can see usage of embed TWebCanvas in such application
+/// File webwindow.cxx shows how RWebWindow can be created and used
+/// In webwindow.html simple client code is provided.
 ///
 /// \macro_code
 ///
@@ -20,9 +19,92 @@
 std::shared_ptr<ROOT::RWebWindow> window;
 
 TCanvas *canvas = nullptr;
+TWebCanvas *web_canv = nullptr;
 TH1I *hist = nullptr;
 
 int counter = 0;
+
+void SetPrivateCanvasFields(TCanvas *canv, bool on_init = true)
+{
+   Long_t offset = TCanvas::Class()->GetDataMemberOffset("fCanvasID");
+   if (offset > 0) {
+      Int_t *id = (Int_t *)((char *) canv + offset);
+      if (*id == canv->GetCanvasID()) *id = on_init ? 111222333 : -1;
+   } else {
+      printf("ERROR: Cannot modify TCanvas::fCanvasID data member\n");
+   }
+
+   offset = TCanvas::Class()->GetDataMemberOffset("fPixmapID");
+   if (offset > 0) {
+      Int_t *id = (Int_t *)((char *) canv + offset);
+      if (*id == canv->GetPixmapID()) *id = on_init ? 332211 : -1;
+   } else {
+      printf("ERROR: Cannot modify TCanvas::fPixmapID data member\n");
+   }
+
+   offset = TCanvas::Class()->GetDataMemberOffset("fMother");
+   if (offset > 0) {
+      TPad **moth = (TPad **)((char *) canv + offset);
+      if (*moth == canv->GetMother()) *moth = on_init ? canv : nullptr;
+   } else {
+      printf("ERROR: Cannot set TCanvas::fMother data member\n");
+   }
+
+   offset = TCanvas::Class()->GetDataMemberOffset("fCw");
+   if (offset > 0) {
+      UInt_t *cw = (UInt_t *)((char *) canv + offset);
+      if (*cw == canv->GetWw()) *cw = on_init ? 800 : 0;
+   } else {
+      printf("ERROR: Cannot set TCanvas::fCw data member\n");
+   }
+
+   offset = TCanvas::Class()->GetDataMemberOffset("fCh");
+   if (offset > 0) {
+      UInt_t *ch = (UInt_t *)((char *) canv + offset);
+      if (*ch == canv->GetWh()) *ch = on_init ? 600 : 0;
+   } else {
+      printf("ERROR: Cannot set TCanvas::fCw data member\n");
+   }
+}
+
+void CreateTCanvas(const char *canvas_name)
+{
+   canvas = new TCanvas(kFALSE);
+   canvas->SetName(canvas_name);
+   canvas->SetTitle(canvas_name);
+   canvas->ResetBit(TCanvas::kShowEditor);
+   canvas->ResetBit(TCanvas::kShowToolBar);
+   canvas->SetBit(TCanvas::kMenuBar, kTRUE);
+   canvas->SetCanvas(canvas);
+   canvas->SetBatch(kTRUE); // mark canvas as batch
+   canvas->SetEditable(kTRUE); // ensure fPrimitives are created
+
+   Bool_t readonly = kFALSE;
+
+   // create implementation
+   web_canv = new TWebCanvas(canvas, "title", 0, 0, 800, 600, readonly);
+
+   // use async mode to prevent blocking
+   // web_canv->SetAsyncMode(kTRUE);
+
+   // assign implementation
+   canvas->SetCanvasImp(web_canv);
+   SetPrivateCanvasFields(canvas, true);
+   canvas->cd();
+
+   {
+      R__LOCKGUARD(gROOTMutex);
+      auto l1 = gROOT->GetListOfCleanups();
+      if (!l1->FindObject(canvas))
+         l1->Add(canvas);
+      auto l2 = gROOT->GetListOfCanvases();
+      if (!l2->FindObject(canvas))
+         l2->Add(canvas);
+   }
+
+   // ensure creation of web window
+   web_canv->ShowWebWindow("embed");
+}
 
 void ProcessData(unsigned connid, const std::string &arg)
 {
@@ -45,8 +127,8 @@ void ProcessData(unsigned connid, const std::string &arg)
    } else if (arg.compare(0, 8, "channel:") == 0) {
       int chid = std::stoi(arg.substr(8));
       printf("Get channel request %d\n", chid);
-      auto web_imp = dynamic_cast<TWebCanvas *>(canvas->GetCanvasImp());
-      web_imp->ShowWebWindow({ window, connid, chid });
+
+      ROOT::RWebWindow::ShowWindow(web_canv->GetWebWindow(), { window, connid, chid });
    }
 }
 
@@ -62,15 +144,13 @@ void webwindow()
    // create window
    window = ROOT::RWebWindow::Create();
 
-   // create TCanvas with pre-configure web display
-   canvas = TWebCanvas::CreateWebCanvas("Canvas1", "Example of web canvas");
-
+   CreateTCanvas("Canvas1");
 
    hist = new TH1I("hpx", "Test histogram", 40, -5, 5);
    hist->FillRandom("gaus", 10000);
    canvas->Add(hist);
 
-   // start regular fill of histogram and update of canvas
+
    auto timer = new TTimer("update_canvas()", 2000, kFALSE);
    timer->TurnOn();
 

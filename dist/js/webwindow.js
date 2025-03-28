@@ -30,7 +30,11 @@ function addCanvasToMainPage(handle) {
    painter.use_openui = false;   // use by default ui5 widgets
 
    // let canvas use create channel
-   painter.useWebsocket(conn);
+   // with older JSROOT not able to set channel
+   // painter.useWebsocket(conn);
+   painter._websocket = conn;
+   conn.setReceiver(painter);
+
    handle.send('channel:' + conn.getChannelId());
 }
 

@@ -15,12 +15,14 @@
 #include "TCanvas.h"
 #include "TWebCanvas.h"
 #include "TTimer.h"
+#include "TFile.h"
+#include "TH2.h"
 
 std::shared_ptr<ROOT::RWebWindow> window;
 
 TCanvas *canvas = nullptr;
 TWebCanvas *web_canv = nullptr;
-TH1I *hist = nullptr;
+TH2I *hist = nullptr;
 
 int counter = 0;
 
@@ -67,11 +69,15 @@ void SetPrivateCanvasFields(TCanvas *canv, bool on_init = true)
    }
 }
 
-void CreateTCanvas(const char *canvas_name)
+void LoadTCanvas(const char *file_name, const char* canvas_name)
 {
-   canvas = new TCanvas(kFALSE);
-   canvas->SetName(canvas_name);
-   canvas->SetTitle(canvas_name);
+
+   auto f = TFile::Open(file_name);
+   canvas = (TCanvas *) f->Get(canvas_name);
+
+   //canvas = new TCanvas(kFALSE);
+   // canvas->SetName(canvas_name);
+   // canvas->SetTitle(canvas_name);
    canvas->ResetBit(TCanvas::kShowEditor);
    canvas->ResetBit(TCanvas::kShowToolBar);
    canvas->SetBit(TCanvas::kMenuBar, kTRUE);
@@ -132,9 +138,12 @@ void ProcessData(unsigned connid, const std::string &arg)
    }
 }
 
+int fill_place = 2;
+
 void update_canvas()
 {
-   hist->FillRandom("gaus", 5000);
+   hist->Fill(fill_place*2, fill_place, 1000);
+   fill_place = (fill_place + 7) % 60;
    canvas->Modified();
    canvas->Update();
 }
@@ -144,16 +153,16 @@ void webwindow()
    // create window
    window = ROOT::RWebWindow::Create();
 
-   CreateTCanvas("Canvas1");
+   LoadTCanvas("file_h_adc_chan_0.root", "c_h_adc_chan_0");
 
-   hist = new TH1I("hpx", "Test histogram", 40, -5, 5);
-   hist->FillRandom("gaus", 10000);
-   canvas->Add(hist);
+   //hist = new TH1I("hpx", "Test histogram", 40, -5, 5);
+   //hist->FillRandom("gaus", 10000);
+   //canvas->Add(hist);
 
+   hist = (TH2I*) canvas->GetListOfPrimitives()->FindObject("h_adc_chan_0");
 
    auto timer = new TTimer("update_canvas()", 2000, kFALSE);
    timer->TurnOn();
-
 
    // configure default html page
    // either HTML code can be specified or just name of file after 'file:' prefix
